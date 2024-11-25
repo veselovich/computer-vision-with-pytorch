@@ -7,7 +7,8 @@ import torch
 import pandas as pd
 
 from tqdm.auto import tqdm
-from typing import Dict, List
+from typing import Dict, List, Optional
+from torchmetrics import F1Score, Precision, Recall
 
 
 def train_step(
@@ -78,23 +79,23 @@ def test_step(
     dataloader: torch.utils.data.DataLoader,
     loss_fn: torch.nn.Module,
     device: torch.device,
+    precision_metric: Optional[Precision] = None,
+    recall_metric: Optional[Recall] = None,
+    f1_metric: Optional[F1Score] = None,
 ) -> Dict[str, float]:
-    """Tests a PyTorch model for a single epoch.
-
-    Turns a target PyTorch model to "eval" mode and then performs
-    a forward pass on a testing dataset.
+    """Tests a PyTorch model for a single epoch with optional additional metrics.
 
     Args:
     model: A PyTorch model to be tested.
     dataloader: A DataLoader instance for the model to be tested on.
     loss_fn: A PyTorch loss function to calculate loss on the test data.
     device: A target device to compute on (e.g. "cuda" or "cpu").
+    precision_metric: An optional Precision metric from torchmetrics.
+    recall_metric: An optional Recall metric from torchmetrics.
+    f1_metric: An optional F1Score metric from torchmetrics.
 
     Returns:
-    A dictionary of testing loss and testing accuracy metrics.
-    For example:
-
-    {'test_loss': 0.0223, 'test_acc': 0.8985}
+    A dictionary of testing metrics including loss, accuracy, and any provided metrics.
     """
     # Put model in eval mode
     model.eval()
@@ -102,10 +103,17 @@ def test_step(
     # Setup test loss and test accuracy values
     test_loss, test_acc = 0, 0
 
+    # Reset metrics if provided
+    if precision_metric:
+        precision_metric.reset()
+    if recall_metric:
+        recall_metric.reset()
+    if f1_metric:
+        f1_metric.reset()
+
     # Turn on inference context manager
     with torch.inference_mode():
-        # Loop through DataLoader batches
-        for batch, (X, y) in enumerate(dataloader):
+        for X, y in dataloader:
             # Send data to target device
             X, y = X.to(device), y.to(device)
 
@@ -116,14 +124,34 @@ def test_step(
             loss = loss_fn(test_pred_logits, y)
             test_loss += loss.item()
 
-            # Calculate and accumulate accuracy
+            # 3. Calculate predictions and accuracy
             test_pred_labels = test_pred_logits.argmax(dim=1)
             test_acc += (test_pred_labels == y).sum().item() / len(test_pred_labels)
+
+            # 4. Update additional metrics if provided
+            if precision_metric:
+                precision_metric.update(test_pred_labels, y)
+            if recall_metric:
+                recall_metric.update(test_pred_labels, y)
+            if f1_metric:
+                f1_metric.update(test_pred_labels, y)
 
     # Adjust metrics to get average loss and accuracy per batch
     test_loss = test_loss / len(dataloader)
     test_acc = test_acc / len(dataloader)
-    return {"test_loss": test_loss, "test_acc": test_acc}
+
+    # Create results dictionary
+    results = {"test_loss": test_loss, "test_acc": test_acc}
+
+    # Add optional metrics to the results
+    if precision_metric:
+        results["precision"] = precision_metric.compute().item()
+    if recall_metric:
+        results["recall"] = recall_metric.compute().item()
+    if f1_metric:
+        results["f1_score"] = f1_metric.compute().item()
+
+    return results
 
 
 def train(

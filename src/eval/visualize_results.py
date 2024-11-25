@@ -80,3 +80,8 @@ def pred_and_plot_image(
         f"Pred: {class_names[target_image_pred_label]} | Prob: {target_image_pred_probs.max():.3f}"
     )
     plt.axis(False)
+
+
+def plot_conf_mat():
+    #TODO
+    pass
