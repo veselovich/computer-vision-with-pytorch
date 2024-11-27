@@ -7,8 +7,11 @@ import torch
 import torchvision
 from torchvision import transforms
 import matplotlib.pyplot as plt
+from torchmetrics import ConfusionMatrix
+from mlxtend.plotting import plot_confusion_matrix
+import matplotlib.pyplot as plt
 
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 
 from PIL import Image
 
@@ -82,6 +85,55 @@ def pred_and_plot_image(
     plt.axis(False)
 
 
-def plot_conf_mat():
-    #TODO
-    pass
+def plot_confusion_matrix_step(
+    model: torch.nn.Module,
+    dataloader: torch.utils.data.DataLoader,
+    device: torch.device,
+    num_classes: int,
+    class_names: Optional[list] = None,
+    figsize: tuple = (8, 8),
+    cmap: str = "Blues",
+) -> None:
+    """Computes and plots the confusion matrix for a PyTorch model using mlxtend.
+
+    Args:
+    model: A PyTorch model to be evaluated.
+    dataloader: A DataLoader instance for the test dataset.
+    device: A target device to compute on (e.g., "cuda" or "cpu").
+    num_classes: The number of classes in the dataset.
+    class_names: Optional list of class names for the confusion matrix labels.
+    figsize: Tuple specifying the size of the confusion matrix plot.
+    cmap: Colormap for the confusion matrix visualization.
+
+    Returns:
+    None. Displays the confusion matrix plot.
+    """
+    # Put model in eval mode
+    model.eval()
+
+    # Initialize confusion matrix metric
+    confusion_matrix_metric = ConfusionMatrix(num_classes=num_classes).to(device)
+
+    # Turn on inference mode
+    with torch.inference_mode():
+        for X, y in dataloader:
+            # Send data to device
+            X, y = X.to(device), y.to(device)
+
+            # 1. Forward pass
+            test_pred_logits = model(X)
+
+            # 2. Get predictions
+            test_pred_labels = test_pred_logits.argmax(dim=1)
+
+            # 3. Update confusion matrix metric
+            confusion_matrix_metric.update(test_pred_labels, y)
+
+    # Compute the confusion matrix
+    conf_matrix = confusion_matrix_metric.compute().cpu().numpy()
+
+    # Plot the confusion matrix
+    fig, ax = plt.subplots(figsize=figsize)
+    plot_confusion_matrix(conf_mat=conf_matrix, class_names=class_names, cmap=cmap, ax=ax)
+    plt.title("Confusion Matrix")
+    plt.show()

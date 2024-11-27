@@ -9,6 +9,7 @@ import pandas as pd
 from tqdm.auto import tqdm
 from typing import Dict, List, Optional
 from torchmetrics import F1Score, Precision, Recall
+from torch.utils.tensorboard.writer import SummaryWriter
 
 
 def train_step(
@@ -162,14 +163,15 @@ def train(
     loss_fn: torch.nn.Module,
     epochs: int,
     device: torch.device,
-) -> Dict[str, List]:
+    writer: Optional[torch.utils.tensorboard.writer.SummaryWriter] = None,
+) -> pd.DataFrame:
     """Trains and tests a PyTorch model.
 
     Passes a target PyTorch models through train_step() and test_step()
     functions for a number of epochs, training and testing the model
     in the same epoch loop.
 
-    Calculates, prints and stores evaluation metrics throughout.
+    Calculates, prints, and stores evaluation metrics throughout.
 
     Args:
     model: A PyTorch model to be trained and tested.
@@ -178,26 +180,16 @@ def train(
     optimizer: A PyTorch optimizer to help minimize the loss function.
     loss_fn: A PyTorch loss function to calculate loss on both datasets.
     epochs: An integer indicating how many epochs to train for.
-    device: A target device to compute on (e.g. "cuda" or "cpu").
+    device: A target device to compute on (e.g., "cuda" or "cpu").
+    writer: (Optional) A TensorBoard SummaryWriter instance for logging metrics.
 
     Returns:
-    A dictionary of training and testing loss as well as training and
-    testing accuracy metrics. Each metric has a value in a list for
-    each epoch.
-    In the form: {train_loss: [...],
-              train_acc: [...],
-              test_loss: [...],
-              test_acc: [...]}
-    For example if training for epochs=2:
-             {train_loss: [2.0616, 1.0537],
-              train_acc: [0.3945, 0.3945],
-              test_loss: [1.2641, 1.5706],
-              test_acc: [0.3400, 0.2973]}
+    A pandas DataFrame containing training and testing metrics for each epoch.
     """
-    # Create empty results dictionary
-    results = list()
+    # Create empty results list
+    results = []
 
-    # Make sure model on target device
+    # Make sure the model is on the target device
     model.to(device)
 
     # Loop through training and testing steps for a number of epochs
@@ -205,6 +197,7 @@ def train(
         start_time = time.time()
         metrics = {"epoch": epoch + 1}
 
+        # Perform a training step
         train_result = train_step(
             model=model,
             dataloader=train_dataloader,
@@ -212,25 +205,89 @@ def train(
             optimizer=optimizer,
             device=device,
         )
-
         metrics.update(train_result)
 
+        # Perform a testing step
         test_result = test_step(
             model=model, dataloader=test_dataloader, loss_fn=loss_fn, device=device
         )
-
         metrics.update(test_result)
+
+        # Compute epoch time
         epoch_time = time.time() - start_time
         metrics["epoch_time"] = epoch_time
         results.append(metrics)
 
         # Print results
-        for key, value in metrics.items():
-            if isinstance(value, float):
-                print(f"{key}: {value:.4f} | ", end="")
-            else:
-                print(f"{key}: {value} | ", end="")
-        print()
+        print(" | ".join(f"{key}: {value:.4f}" if isinstance(value, float) else f"{key}: {value}" for key, value in metrics.items()))
 
-    # Return the filled results at the end of the epochs
+        # Log metrics to TensorBoard
+        if writer:
+            try:
+                writer.add_scalars(
+                    main_tag="Loss",
+                    tag_scalar_dict={
+                        "train_loss": train_result["train_loss"],
+                        "test_loss": test_result["test_loss"],
+                    },
+                    global_step=epoch,
+                )
+                writer.add_scalars(
+                    main_tag="Accuracy",
+                    tag_scalar_dict={
+                        "train_acc": train_result["train_acc"],
+                        "test_acc": test_result["test_acc"],
+                    },
+                    global_step=epoch,
+                )
+                writer.add_scalar("Epoch Time", epoch_time, global_step=epoch)
+            except KeyError as e:
+                print(f"KeyError logging to TensorBoard: {e}")
+
+    # Close the writer if provided
+    if writer:
+        writer.close()
+
+    # Return the filled results as a pandas DataFrame
     return pd.DataFrame(results)
+
+
+def create_writer(experiment_name: str, 
+                  model_name: str, 
+                  extra: str=None) -> torch.utils.tensorboard.writer.SummaryWriter:
+    """Creates a torch.utils.tensorboard.writer.SummaryWriter() instance saving to a specific log_dir.
+
+    log_dir is a combination of runs/timestamp/experiment_name/model_name/extra.
+
+    Where timestamp is the current date in YYYY-MM-DD format.
+
+    Args:
+        experiment_name (str): Name of experiment.
+        model_name (str): Name of model.
+        extra (str, optional): Anything extra to add to the directory. Defaults to None.
+
+    Returns:
+        torch.utils.tensorboard.writer.SummaryWriter(): Instance of a writer saving to log_dir.
+
+    Example usage:
+        # Create a writer saving to "runs/2022-06-04/data_10_percent/effnetb2/5_epochs/"
+        writer = create_writer(experiment_name="data_10_percent",
+                               model_name="effnetb2",
+                               extra="5_epochs")
+        # The above is the same as:
+        writer = SummaryWriter(log_dir="runs/2022-06-04/data_10_percent/effnetb2/5_epochs/")
+    """
+    from datetime import datetime
+    import os
+
+    # Get timestamp of current date (all experiments on certain day live in same folder)
+    timestamp = datetime.now().strftime("%Y-%m-%d") # returns current date in YYYY-MM-DD format
+
+    if extra:
+        # Create log directory path
+        log_dir = os.path.join("runs", timestamp, experiment_name, model_name, extra)
+    else:
+        log_dir = os.path.join("runs", timestamp, experiment_name, model_name)
+        
+    print(f"[INFO] Created SummaryWriter, saving to: {log_dir}...")
+    return SummaryWriter(log_dir=log_dir)
