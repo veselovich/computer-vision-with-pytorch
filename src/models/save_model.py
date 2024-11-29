@@ -6,8 +6,8 @@ import torch
 from pathlib import Path
 
 
-def save_model(model: torch.nn.Module, target_dir: str, model_name: str):
-    """Saves a PyTorch model to a target directory.
+def save_model(model: torch.nn.Module, target_dir: str, model_name: str) -> str:
+    """Saves a PyTorch model to a target directory and returns the absolute path to the saved model.
 
     Args:
     model: A target PyTorch model to save.
@@ -15,10 +15,13 @@ def save_model(model: torch.nn.Module, target_dir: str, model_name: str):
     model_name: A filename for the saved model. Should include
     either ".pth" or ".pt" as the file extension.
 
+    Returns:
+    str: The absolute path to the saved model file.
+
     Example usage:
-    save_model(model=model_0,
-               target_dir="models",
-               model_name="05_going_modular_tingvgg_model.pth")
+    model_path = save_model(model=model_0,
+                            target_dir="models",
+                            model_name="05_going_modular_tingvgg_model.pth")
     """
     # Create target directory
     target_dir_path = Path(target_dir)
@@ -33,3 +36,6 @@ def save_model(model: torch.nn.Module, target_dir: str, model_name: str):
     # Save the model state_dict()
     print(f"[INFO] Saving model to: {model_save_path}")
     torch.save(obj=model.state_dict(), f=model_save_path)
+
+    # Return the absolute path as a string
+    return str(model_save_path.resolve())

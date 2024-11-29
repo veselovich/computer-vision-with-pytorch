@@ -1,46 +1,55 @@
 """
 Utility functions to make predictions.
-
-Main reference for code creation: https://www.learnpytorch.io/06_pytorch_transfer_learning/#6-make-predictions-on-images-from-the-test-set 
 """
+
+import requests
 import torch
 import torchvision
 from torchvision import transforms
 import matplotlib.pyplot as plt
 from torchmetrics import ConfusionMatrix
 from mlxtend.plotting import plot_confusion_matrix
-import matplotlib.pyplot as plt
-
-from typing import List, Tuple, Optional
-
 from PIL import Image
+from io import BytesIO
+from typing import List, Tuple, Optional
 
 # Set device
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 # Predict on a target image with a target model
-# Function created in: https://www.learnpytorch.io/06_pytorch_transfer_learning/#6-make-predictions-on-images-from-the-test-set
+
 def pred_and_plot_image(
     model: torch.nn.Module,
     class_names: List[str],
-    image_path: str,
+    image_source: str,
     image_size: Tuple[int, int] = (224, 224),
     transform: torchvision.transforms = None,
-    device: torch.device = device,
+    device: torch.device = torch.device("cpu"),
 ):
-    """Predicts on a target image with a target model.
+    """Predicts on a target image (from a file path or URL) with a target model.
 
     Args:
         model (torch.nn.Module): A trained (or untrained) PyTorch model to predict on an image.
         class_names (List[str]): A list of target classes to map predictions to.
-        image_path (str): Filepath to target image to predict on.
+        image_source (str): Filepath or URL of the target image to predict on.
         image_size (Tuple[int, int], optional): Size to transform target image to. Defaults to (224, 224).
         transform (torchvision.transforms, optional): Transform to perform on image. Defaults to None which uses ImageNet normalization.
-        device (torch.device, optional): Target device to perform prediction on. Defaults to device.
-    """
+        device (torch.device, optional): Target device to perform prediction on. Defaults to "cpu".
 
-    # Open image
-    img = Image.open(image_path)
+    Returns:
+        dict: Information about the image and prediction, including:
+            - "predicted_label": Predicted class label
+            - "predicted_probability": Predicted probability for the class
+            - "image_shape": Shape of the original image
+            - "transformed_image": The transformed image tensor
+    """
+    # Load image from URL or file path
+    if image_source.startswith("http://") or image_source.startswith("https://"):
+        response = requests.get(image_source)
+        response.raise_for_status()
+        img = Image.open(BytesIO(response.content))
+    else:
+        img = Image.open(image_source)
 
     # Create transformation for image (if one doesn't exist)
     if transform is not None:
@@ -56,33 +65,37 @@ def pred_and_plot_image(
             ]
         )
 
-    ### Predict on image ###
-
-    # Make sure the model is on the target device
+    # Prepare model for prediction
     model.to(device)
-
-    # Turn on model evaluation mode and inference mode
     model.eval()
+
+    # Transform and add batch dimension to image
+    transformed_image = image_transform(img).unsqueeze(dim=0).to(device)
+
+    # Make prediction
     with torch.inference_mode():
-        # Transform and add an extra dimension to image (model requires samples in [batch_size, color_channels, height, width])
-        transformed_image = image_transform(img).unsqueeze(dim=0)
+        target_image_pred = model(transformed_image)
+        target_image_pred_probs = torch.softmax(target_image_pred, dim=1)
+        target_image_pred_label = torch.argmax(target_image_pred_probs, dim=1).item()
 
-        # Make a prediction on image with an extra dimension and send it to the target device
-        target_image_pred = model(transformed_image.to(device))
+    # Get prediction results
+    predicted_label = class_names[target_image_pred_label]
+    predicted_probability = target_image_pred_probs.max().item()
 
-    # Convert logits -> prediction probabilities (using torch.softmax() for multi-class classification)
-    target_image_pred_probs = torch.softmax(target_image_pred, dim=1)
-
-    # Convert prediction probabilities -> prediction labels
-    target_image_pred_label = torch.argmax(target_image_pred_probs, dim=1)
-
-    # Plot image with predicted label and probability
+    # Plot image with prediction
     plt.figure()
     plt.imshow(img)
-    plt.title(
-        f"Pred: {class_names[target_image_pred_label]} | Prob: {target_image_pred_probs.max():.3f}"
-    )
+    plt.title(f"Pred: {predicted_label} | Prob: {predicted_probability:.3f}")
     plt.axis(False)
+    plt.show()
+
+    # Return image information and prediction
+    return {
+        "predicted_label": predicted_label,
+        "predicted_probability": predicted_probability,
+        "image_shape": img.size,  # (width, height)
+        "transformed_image": transformed_image,
+    }
 
 
 def plot_confusion_matrix_step(
@@ -134,6 +147,8 @@ def plot_confusion_matrix_step(
 
     # Plot the confusion matrix
     fig, ax = plt.subplots(figsize=figsize)
-    plot_confusion_matrix(conf_mat=conf_matrix, class_names=class_names, cmap=cmap, ax=ax)
+    plot_confusion_matrix(
+        conf_mat=conf_matrix, class_names=class_names, cmap=cmap, ax=ax
+    )
     plt.title("Confusion Matrix")
     plt.show()
