@@ -3,11 +3,12 @@ import torch
 from src.models.create_model import create_effnetb0
 from src.training.train import train, test_step
 from src.models.save_model import save_model
-from src.eval.visualize_results import pred_and_plot_image, plot_confusion_matrix_step
+from src.eval.visualize_results import pred_and_plot_image, plot_confusion_matrix_step, top_k_fails
 from src.utils.writer import create_writer
 from torchmetrics import Precision, Recall, F1Score
 from torchvision import datasets
 from torch.utils.data import DataLoader
+from torchinfo import summary
 
 
 def main():
@@ -30,6 +31,15 @@ def main():
 
     # Create a model and metrics
     model, model_transform = create_effnetb0(out_features=num_classes, device=device)
+
+    # summary(
+    #     model,
+    #     input_size=(1, 3, 224, 224),
+    #     # col_names=["input_size"], # uncomment for smaller output
+    #     col_names=["input_size", "output_size", "num_params", "trainable"],
+    #     col_width=20,
+    #     row_settings=["var_names"]
+    #     )
 
     loss_fn = torch.nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(params=model.parameters(), lr=0.001)
@@ -115,6 +125,11 @@ def main():
                                num_classes=num_classes,
                                class_names=class_names,
                                )
+    
+    top_k_fails(model=model,
+                dataloader=test_loader,
+                device=device,
+                k=10)
 
 if __name__ == "__main__":
     main()

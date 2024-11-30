@@ -152,3 +152,83 @@ def plot_confusion_matrix_step(
     )
     plt.title("Confusion Matrix")
     plt.show()
+
+
+def top_k_fails(
+    model: torch.nn.Module,
+    dataloader: torch.utils.data.DataLoader,
+    device: torch.device,
+    k: int = 5
+):
+    """
+    Identifies and displays the top k images recognized incorrectly with the highest probabilities.
+
+    Args:
+        model (torch.nn.Module): A trained PyTorch model.
+        dataloader (torch.utils.data.DataLoader): DataLoader for the dataset to evaluate.
+        device (torch.device): The device to run the model on (e.g., "cuda" or "cpu").
+        k (int): Number of top incorrect predictions to analyze and display.
+
+    Returns:
+        Dict[str, torch.Tensor]:
+            A dictionary containing the following keys:
+                - "images": Incorrectly predicted images.
+                - "probs": Probabilities of the incorrect predictions.
+                - "labels": True labels of the images.
+                - "predictions": Predicted labels for the images.
+
+    """
+    model.to(device)
+    model.eval()
+
+    incorrect_images = []
+    incorrect_probs = []
+    incorrect_labels = []
+    incorrect_preds = []
+
+    with torch.inference_mode():
+        for X, y in dataloader:
+            X, y = X.to(device), y.to(device)
+            outputs = model(X)
+            probabilities = torch.softmax(outputs, dim=1)
+            preds = probabilities.argmax(dim=1)
+
+            # Identify incorrect predictions
+            incorrect_mask = preds != y
+            if incorrect_mask.any():
+                incorrect_images.extend(X[incorrect_mask].cpu())
+                incorrect_probs.extend(probabilities[incorrect_mask, preds[incorrect_mask]].cpu())
+                incorrect_labels.extend(y[incorrect_mask].cpu())
+                incorrect_preds.extend(preds[incorrect_mask].cpu())
+
+    # Convert results to tensors
+    incorrect_probs = torch.tensor(incorrect_probs)
+    sorted_indices = torch.argsort(incorrect_probs, descending=True)[:k]
+
+    images = torch.stack([incorrect_images[i] for i in sorted_indices])
+    probs = incorrect_probs[sorted_indices]
+    labels = torch.tensor([incorrect_labels[i] for i in sorted_indices])
+    predictions = torch.tensor([incorrect_preds[i] for i in sorted_indices])
+
+    # Display the results
+    plt.figure(figsize=(15, 10))
+    for i in range(min(k, len(images))):
+        image = images[i]
+        prob = probs[i].item()
+        label = labels[i].item()
+        pred = predictions[i].item()
+
+        plt.subplot(1, k, i + 1)
+        plt.imshow(image.permute(1, 2, 0))
+        plt.title(f"Pred: {pred} ({prob:.2f})\nLabel: {label}")
+        plt.axis("off")
+
+    plt.tight_layout()
+    plt.show()
+
+    return {
+        "images": torch.stack([incorrect_images[i] for i in sorted_indices]),
+        "probs": incorrect_probs[sorted_indices],
+        "labels": torch.tensor([incorrect_labels[i] for i in sorted_indices]),
+        "predictions": torch.tensor([incorrect_preds[i] for i in sorted_indices]),
+    }
