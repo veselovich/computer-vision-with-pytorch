@@ -125,7 +125,7 @@ def plot_confusion_matrix_step(
     model.eval()
 
     # Initialize confusion matrix metric
-    confusion_matrix_metric = ConfusionMatrix(num_classes=num_classes).to(device)
+    confusion_matrix_metric = ConfusionMatrix(num_classes=num_classes, task="multiclass").to(device)
 
     # Turn on inference mode
     with torch.inference_mode():
@@ -148,7 +148,7 @@ def plot_confusion_matrix_step(
     # Plot the confusion matrix
     fig, ax = plt.subplots(figsize=figsize)
     plot_confusion_matrix(
-        conf_mat=conf_matrix, class_names=class_names, cmap=cmap, ax=ax
+        conf_mat=conf_matrix, class_names=class_names, cmap=cmap, axis=ax
     )
     plt.title("Confusion Matrix")
     plt.show()
@@ -158,6 +158,7 @@ def top_k_fails(
     model: torch.nn.Module,
     dataloader: torch.utils.data.DataLoader,
     device: torch.device,
+    class_names: list[str],
     k: int = 5
 ):
     """
@@ -167,6 +168,7 @@ def top_k_fails(
         model (torch.nn.Module): A trained PyTorch model.
         dataloader (torch.utils.data.DataLoader): DataLoader for the dataset to evaluate.
         device (torch.device): The device to run the model on (e.g., "cuda" or "cpu").
+        class_names (list[str]): List of class names corresponding to the labels.
         k (int): Number of top incorrect predictions to analyze and display.
 
     Returns:
@@ -176,7 +178,6 @@ def top_k_fails(
                 - "probs": Probabilities of the incorrect predictions.
                 - "labels": True labels of the images.
                 - "predictions": Predicted labels for the images.
-
     """
     model.to(device)
     model.eval()
@@ -210,17 +211,18 @@ def top_k_fails(
     labels = torch.tensor([incorrect_labels[i] for i in sorted_indices])
     predictions = torch.tensor([incorrect_preds[i] for i in sorted_indices])
 
-    # Display the results
+    # Display the results with class names
     plt.figure(figsize=(15, 10))
     for i in range(min(k, len(images))):
         image = images[i]
+        image = torch.clip(image, 0, 1)
         prob = probs[i].item()
         label = labels[i].item()
         pred = predictions[i].item()
 
         plt.subplot(1, k, i + 1)
         plt.imshow(image.permute(1, 2, 0))
-        plt.title(f"Pred: {pred} ({prob:.2f})\nLabel: {label}")
+        plt.title(f"Pred: {class_names[pred]} ({prob:.2f})\nLabel: {class_names[label]}")
         plt.axis("off")
 
     plt.tight_layout()

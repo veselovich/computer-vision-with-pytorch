@@ -1,5 +1,6 @@
 import os
 import torch
+import numpy as np
 from src.models.create_model import create_effnetb0
 from src.training.train import train, test_step
 from src.models.save_model import save_model
@@ -7,7 +8,7 @@ from src.eval.visualize_results import pred_and_plot_image, plot_confusion_matri
 from src.utils.writer import create_writer
 from torchmetrics import Precision, Recall, F1Score
 from torchvision import datasets
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset
 from torchinfo import summary
 
 
@@ -28,6 +29,19 @@ def main():
     test_dataset = datasets.CIFAR10(root="./data", train=False, download=True)
     class_names = train_dataset.classes
     num_classes = len(class_names)
+
+    SPLIT = 0.01
+
+    train_subset_size = int(len(train_dataset) * SPLIT)
+    test_subset_size = int(len(train_dataset) * SPLIT)
+
+    # Randomly select indices for the subset
+    train_subset_indices = np.random.choice(len(train_dataset), train_subset_size, replace=False)
+    test_subset_indices = np.random.choice(len(test_dataset), test_subset_size, replace=False)
+
+    # Create the subset
+    train_subset = Subset(train_dataset, train_subset_indices)
+    test_subset = Subset(test_dataset, test_subset_indices)
 
     # Create a model and metrics
     model, model_transform = create_effnetb0(out_features=num_classes, device=device)
@@ -50,14 +64,14 @@ def main():
     test_dataset.transform = model_transform
 
     train_loader = DataLoader(
-        train_dataset,
+        train_subset,
         batch_size=64,
         shuffle=True,
         num_workers=num_workers,
         pin_memory=True,
     )
     test_loader = DataLoader(
-        test_dataset,
+        test_subset,
         batch_size=64,
         shuffle=False,
         num_workers=num_workers,
@@ -86,6 +100,7 @@ def main():
     train_metrics = train(
         model=model,
         train_dataloader=train_loader,
+        test_dataloader=test_loader,
         optimizer=optimizer,
         loss_fn=loss_fn,
         epochs=EPOCHS,
@@ -96,7 +111,7 @@ def main():
     print(train_metrics)
 
     saved_model_path = save_model(model=model,
-                                     traget_dir="models",
+                                     target_dir="models",
                                      model_name=f"{train_dataset.__class__.__name__}_{model.name}_{EPOCHS}_epochs.pth",)
 
     # Evaluate model
@@ -129,7 +144,8 @@ def main():
     top_k_fails(model=model,
                 dataloader=test_loader,
                 device=device,
-                k=10)
+                class_names=class_names,
+                k=3)
 
 if __name__ == "__main__":
     main()
