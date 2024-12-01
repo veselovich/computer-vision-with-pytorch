@@ -1,14 +1,15 @@
 import os
 import torch
-import numpy as np
 from src.models.create_model import create_effnetb0
-from src.training.train import train, test_step
 from src.models.save_model import save_model
+from src.models.quantization import quantize_model
+from src.training.train import train, test_step
 from src.eval.visualize_results import pred_and_plot_image, plot_confusion_matrix_step, top_k_fails
 from src.utils.writer import create_writer
+from utils.dataset_reduce import dataset_rand_reduce
 from torchmetrics import Precision, Recall, F1Score
 from torchvision import datasets
-from torch.utils.data import DataLoader, Subset
+from torch.utils.data import DataLoader
 from torchinfo import summary
 
 
@@ -21,7 +22,7 @@ def main():
     else:  # Fallback to CPU
         device = torch.device("cpu")
 
-    device = "cpu"  # Works for MacBook Pro late 2013
+    # device = "cpu"  # for my old MacBook
     torch.set_default_device(device)
 
     # Setting up data
@@ -30,18 +31,9 @@ def main():
     class_names = train_dataset.classes
     num_classes = len(class_names)
 
-    SPLIT = 0.01
-
-    train_subset_size = int(len(train_dataset) * SPLIT)
-    test_subset_size = int(len(train_dataset) * SPLIT)
-
-    # Randomly select indices for the subset
-    train_subset_indices = np.random.choice(len(train_dataset), train_subset_size, replace=False)
-    test_subset_indices = np.random.choice(len(test_dataset), test_subset_size, replace=False)
-
-    # Create the subset
-    train_subset = Subset(train_dataset, train_subset_indices)
-    test_subset = Subset(test_dataset, test_subset_indices)
+    REDUCE = 0.01
+    train_subset = dataset_rand_reduce(train_dataset, reduce=REDUCE)
+    test_subset = dataset_rand_reduce(test_dataset, reduce=REDUCE)
 
     # Create a model and metrics
     model, model_transform = create_effnetb0(out_features=num_classes, device=device)
@@ -59,7 +51,8 @@ def main():
     optimizer = torch.optim.Adam(params=model.parameters(), lr=0.001)
 
     # Create DataLoaders
-    num_workers = min(os.cpu_count(), 2)  # Works for MacBook Pro late 2013
+    num_workers = os.cpu_count()
+    # num_workers = min(os.cpu_count(), 2)  # for my old MacBook
     train_dataset.transform = model_transform
     test_dataset.transform = model_transform
 
@@ -109,6 +102,11 @@ def main():
     )
 
     print(train_metrics)
+
+    model = quantize_model(model=model,
+                           quant_type="static",
+                           transform=model_transform,
+                           device=device)
 
     saved_model_path = save_model(model=model,
                                      target_dir="models",

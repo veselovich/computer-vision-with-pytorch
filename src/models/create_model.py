@@ -5,7 +5,8 @@ from torch import nn
 # Create an EffNetB0 feature extractor
 def create_effnetb0(out_features: int,
                     device: torch.device,
-                    seed: int = None,):
+                    seed: int = None,
+                    compile: bool = True):
     # 1. Get the base model with pretrained weights and send to target device
     weights = torchvision.models.EfficientNet_B0_Weights.DEFAULT
     model = torchvision.models.efficientnet_b0(weights=weights).to(device)
@@ -32,4 +33,8 @@ def create_effnetb0(out_features: int,
     # 5. Give the model a name
     model.name = "effnetb0"
     print(f"[INFO] Created new {model.name} model.")
+
+    if compile:
+        model = torch.compile(model)
+
     return model, transform

@@ -101,8 +101,8 @@ def pred_and_plot_image(
 def plot_confusion_matrix_step(
     model: torch.nn.Module,
     dataloader: torch.utils.data.DataLoader,
-    device: torch.device,
     num_classes: int,
+    device: torch.device = torch.device("cpu"),
     class_names: Optional[list] = None,
     figsize: tuple = (8, 8),
     cmap: str = "Blues",
@@ -157,8 +157,8 @@ def plot_confusion_matrix_step(
 def top_k_fails(
     model: torch.nn.Module,
     dataloader: torch.utils.data.DataLoader,
-    device: torch.device,
     class_names: list[str],
+    device: torch.device = torch.device("cpu"),
     k: int = 5
 ):
     """
