@@ -6,7 +6,7 @@ from src.models.quantization import quantize_model
 from src.training.train import train, test_step
 from src.eval.visualize_results import pred_and_plot_image, plot_confusion_matrix_step, top_k_fails
 from src.utils.writer import create_writer
-from utils.dataset_reduce import dataset_rand_reduce
+from src.utils.dataset_reduce import dataset_rand_reduce
 from torchmetrics import Precision, Recall, F1Score
 from torchvision import datasets
 from torch.utils.data import DataLoader
