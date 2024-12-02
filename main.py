@@ -14,16 +14,13 @@ from torchinfo import summary
 
 
 def main():
-    # Device agnostic code
-    if torch.backends.mps.is_built():  # For macOS MPS
+    if torch.backends.mps.is_built() and torch.backends.mps.is_available():
         device = torch.device("mps")
-    elif torch.cuda.is_available():  # For NVIDIA GPUs
+    elif torch.cuda.is_available():
         device = torch.device("cuda")
-    else:  # Fallback to CPU
+    else:
         device = torch.device("cpu")
-
-    # device = "cpu"  # for my old MacBook
-    torch.set_default_device(device)
+    print(f"Using device: {device}")
 
     # Setting up data
     train_dataset = datasets.CIFAR10(root="./data", train=True, download=True)
@@ -52,7 +49,7 @@ def main():
 
     # Create DataLoaders
     num_workers = os.cpu_count()
-    # num_workers = min(os.cpu_count(), 2)  # for my old MacBook
+    pin_memory = device.type == "cuda"
     train_dataset.transform = model_transform
     test_dataset.transform = model_transform
 
@@ -61,14 +58,14 @@ def main():
         batch_size=64,
         shuffle=True,
         num_workers=num_workers,
-        pin_memory=True,
+        pin_memory=pin_memory,
     )
     test_loader = DataLoader(
         test_subset,
         batch_size=64,
         shuffle=False,
         num_workers=num_workers,
-        pin_memory=True,
+        pin_memory=pin_memory,
     )
 
     EPOCHS = 5
