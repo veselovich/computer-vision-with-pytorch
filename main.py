@@ -28,7 +28,7 @@ def main():
     class_names = train_dataset.classes
     num_classes = len(class_names)
 
-    REDUCE = 0.01
+    REDUCE = 0.005
     train_subset = dataset_rand_reduce(train_dataset, reduce=REDUCE)
     test_subset = dataset_rand_reduce(test_dataset, reduce=REDUCE)
 
@@ -100,10 +100,10 @@ def main():
 
     print(train_metrics)
 
-    model = quantize_model(model=model,
-                           quant_type="static",
-                           transform=model_transform,
-                           device=device)
+    # model = quantize_model(model=model,
+    #                        quant_type="static",
+    #                        transform=model_transform,
+    #                        device=device)
 
     saved_model_path = save_model(model=model,
                                      target_dir="models",

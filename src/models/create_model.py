@@ -35,6 +35,14 @@ def create_effnetb0(out_features: int,
     print(f"[INFO] Created new {model.name} model.")
 
     if compile:
-        model = torch.compile(model)
+        try:
+            model = torch.compile(model)
+            dummy_input = torch.randn(1, 3, 224, 224).to(device)
+            with torch.no_grad():
+                model(dummy_input)
+            if device.type == 'cuda':
+                torch.cuda.synchronize()
+        except Exception as e:
+            print(f"[WARNING] Error compiling model: {e}")
 
     return model, transform
