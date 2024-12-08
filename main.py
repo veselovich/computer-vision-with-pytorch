@@ -10,7 +10,6 @@ from src.utils.dataset_reduce import dataset_rand_reduce
 from torchmetrics import Precision, Recall, F1Score
 from torchvision import datasets
 from torch.utils.data import DataLoader
-from torchinfo import summary
 
 
 def main():
@@ -33,16 +32,10 @@ def main():
     test_subset = dataset_rand_reduce(test_dataset, reduce=REDUCE)
 
     # Create a model and metrics
-    model, model_transform = create_effnetb0(out_features=num_classes, device=device)
-
-    # summary(
-    #     model,
-    #     input_size=(1, 3, 224, 224),
-    #     # col_names=["input_size"], # uncomment for smaller output
-    #     col_names=["input_size", "output_size", "num_params", "trainable"],
-    #     col_width=20,
-    #     row_settings=["var_names"]
-    #     )
+    model, model_transform = create_effnetb0(out_features=num_classes,
+                                             device=device,
+                                             print_summary=False,
+                                             compile=False)
 
     loss_fn = torch.nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(params=model.parameters(), lr=0.001)

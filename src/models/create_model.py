@@ -1,11 +1,13 @@
 import torch
 import torchvision
 from torch import nn
+from torchinfo import summary
 
 # Create an EffNetB0 feature extractor
 def create_effnetb0(out_features: int,
                     device: torch.device,
                     seed: int = None,
+                    print_summary: bool = False,
                     compile: bool = True):
     # 1. Get the base model with pretrained weights and send to target device
     weights = torchvision.models.EfficientNet_B0_Weights.DEFAULT
@@ -34,14 +36,26 @@ def create_effnetb0(out_features: int,
     model.name = "effnetb0"
     print(f"[INFO] Created new {model.name} model.")
 
+    if print_summary:
+        summary(
+            model,
+            input_size=(1, 3, 224, 224),
+            # col_names=["input_size"], # uncomment for smaller output
+            col_names=["input_size", "output_size", "num_params", "trainable"],
+            col_width=20,
+            row_settings=["var_names"]
+            )
+
     if compile:
         try:
             model = torch.compile(model)
             dummy_input = torch.randn(1, 3, 224, 224).to(device)
+            model.eval()
             with torch.no_grad():
                 model(dummy_input)
             if device.type == 'cuda':
                 torch.cuda.synchronize()
+            print(f"[INFO] Model {model.name} is compiled.")
         except Exception as e:
             print(f"[WARNING] Error compiling model: {e}")
 

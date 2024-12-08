@@ -31,7 +31,7 @@ def quantize_model(model: torch.nn.Module,
 
     elif quant_type == "static":
         # Prepare the model for static quantization
-        model.qconfig = quantization.get_default_qconfig('fbgemm')
+        model.qconfig = quantization.get_default_qconfig('x86')
 
         # Fuse layers if supported by the model architecture
         model = fuse_model_layers(model=model)
