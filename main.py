@@ -1,12 +1,9 @@
 import os
 import torch
-from src.models.create_model import create_effnetb0
-from src.models.save_model import save_model
-from src.models.quantization import quantize_model
-from src.training.train import train, test_step
-from src.eval.visualize_results import pred_and_plot_image, plot_confusion_matrix_step, top_k_fails
-from src.utils.writer import create_writer
-from src.utils.dataset_reduce import dataset_rand_reduce
+from src.model import create_effnetb0, save_model
+from src.train import train, test_step, create_writer
+from src.eval import pred_and_plot_image, plot_confusion_matrix_step, top_k_fails
+from src.utils import dataset_rand_reduce
 from torchmetrics import Precision, Recall, F1Score
 from torchvision import datasets
 from torch.utils.data import DataLoader
@@ -61,7 +58,7 @@ def main():
         pin_memory=pin_memory,
     )
 
-    EPOCHS = 5
+    EPOCHS = 1
 
     # Initialize additional metrics for model evaluation
     precision = Precision(
@@ -92,11 +89,6 @@ def main():
     )
 
     print(train_metrics)
-
-    # model = quantize_model(model=model,
-    #                        quant_type="static",
-    #                        transform=model_transform,
-    #                        device=device)
 
     saved_model_path = save_model(model=model,
                                      target_dir="models",

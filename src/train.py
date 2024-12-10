@@ -2,15 +2,16 @@
 Contains functions for training and testing a PyTorch model.
 """
 
+import os
 import time
 import torch
 import pandas as pd
 
+from datetime import datetime
 from tqdm.auto import tqdm
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 from torchmetrics import F1Score, Precision, Recall
 from torch.utils.tensorboard.writer import SummaryWriter
-
 
 def train_step(
     model: torch.nn.Module,
@@ -250,3 +251,25 @@ def train(
 
     # Return the filled results as a pandas DataFrame
     return pd.DataFrame(results)
+
+
+def create_writer(data_name: str, model_name: str, extra: str = None) -> SummaryWriter:
+    """
+    Creates a torch.utils.tensorboard.writer.SummaryWriter instance with a specific log_dir structure.
+
+    Args:
+        data_name (str): Name of the dataset.
+        model_name (str): Name of the model.
+        extra (str, optional): Additional information for the directory structure. Defaults to None.
+
+    Returns:
+        SummaryWriter: Writer instance saving logs to the specified directory.
+    """
+    timestamp = datetime.now().strftime("%Y-%m-%d")  # Current date in YYYY-MM-DD format
+    log_dir_components = ["runs", timestamp, data_name, model_name]
+    if extra:
+        log_dir_components.append(extra)
+    log_dir = os.path.join(*log_dir_components)
+
+    print(f"[INFO] Created SummaryWriter, saving to: {log_dir}...")
+    return SummaryWriter(log_dir=log_dir)

@@ -1,7 +1,12 @@
 import torch
 from torch import nn
-import torch.quantization as quantization
+from src.utils import get_model_size
+
+import torch
+from torch import nn
+import torch.ao.quantization as quantization
 from torchvision import transforms
+
 
 def quantize_model(model: torch.nn.Module,
                           quant_type: str = "dynamic",
@@ -25,8 +30,8 @@ def quantize_model(model: torch.nn.Module,
         # Apply dynamic quantization
         quantized_model = quantization.quantize_dynamic(
             model,
-            {torch.nn.Linear},  # Quantize only linear layers
-            dtype=torch.qint8  # Quantization data type
+            {torch.nn.Linear},
+            dtype=torch.qint8
         )
 
     elif quant_type == "static":
@@ -69,3 +74,60 @@ def fuse_model_layers(model):
                 model = quantization.fuse_modules(model, [[name, name + '.bn', name + '.relu']])
 
     return model
+
+
+def main():
+    if torch.backends.mps.is_built() and torch.backends.mps.is_available():
+        device = torch.device("mps")
+    elif torch.cuda.is_available():
+        device = torch.device("cuda")
+    else:
+        device = torch.device("cpu")
+    print(f"Using device: {device}")
+
+    class SimpleModel(nn.Module):
+        def __init__(self):
+            super(SimpleModel, self).__init__()
+            self.conv1 = nn.Conv2d(1, 16, 3, 1)
+            self.relu = nn.ReLU()
+            self.fc1 = nn.Linear(26 * 26 * 16, 128)
+            self.fc2 = nn.Linear(128, 10)
+
+        def forward(self, x):
+            x = self.conv1(x)
+            x = self.relu(x)
+            x = x.view(x.size(0), -1)  # Flatten the tensor
+            x = self.fc1(x)
+            x = self.fc2(x)
+            return x
+
+    # Create an instance of the model
+    model = SimpleModel()
+
+    # Measure model size before quantization
+    original_size = get_model_size(model)
+    print(f"Original model size: {original_size:.2f} MB")
+
+
+    # Quantize the model
+    model = quantize_model(model=model,
+                           quant_type="dynamic",
+                           device=device)
+    print("model quantized")
+
+    model = torch.compile(model, backend="eager")
+    dummy_input = torch.randn(1, 1, 28, 28).to(device)
+    model.eval()
+    with torch.no_grad():
+        model(dummy_input)
+
+    # Measure model size after quantization
+    quantized_size = get_model_size(model)
+    print(f"Quantized model size: {quantized_size:.2f} MB")
+
+    print(model)
+
+    print(model(dummy_input))
+
+if __name__ == "__main__":
+    main()
