@@ -1,6 +1,6 @@
 import os
 import torch
-from src.model import get_vision_weights, create_vision_model, save_model
+from src.model import get_vision_weights, create_vision_model
 from src.train import train, test_step, create_writer
 from src.eval import pred_and_plot_image, plot_confusion_matrix_step, top_k_fails
 from src.data import dataset_rand_reduce
@@ -68,7 +68,7 @@ def main():
     writer = create_writer(
         data_name=train_dataset.__class__.__name__,
         model_name=model.name,
-        extra=f"{EPOCHS}_epochs",
+        extra=f"{EPOCHS}_ep",
     )
 
     train_metrics = train(
@@ -83,12 +83,6 @@ def main():
     )
 
     print(train_metrics)
-
-    saved_model_path = save_model(
-        model=model,
-        target_dir="models",
-        model_name=f"{train_dataset.__class__.__name__}_{model.name}_{EPOCHS}_epochs.pth",
-    )
 
     # Initialize additional metrics for model evaluation
     precision = Precision(

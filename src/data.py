@@ -120,17 +120,33 @@ def create_dataloaders(
     return train_dataloader, test_dataloader, class_names
 
 
-def dataset_rand_reduce(dataset, reduce: float = 0.2) -> Subset:
+def dataset_rand_reduce(dataset, reduce=None, num_samples=None) -> Subset:
     """
     Reduces the dataset to a random subset of specified size.
 
     Args:
         dataset: The original dataset to reduce.
-        reduce (float): Fraction of the dataset to retain. Defaults to 0.2.
+        reduce (float, optional): Fraction of the dataset to retain (0 < reduce <= 1).
+        num_samples (int, optional): Explicit number of samples to retain in the subset.
 
     Returns:
         Subset: A random subset of the original dataset.
+
+    Raises:
+        ValueError: If both reduce and num_samples are specified or neither is provided.
+        ValueError: If the calculated or specified number of samples is invalid.
     """
-    subset_size = int(len(dataset) * reduce)
+    if (reduce is None and num_samples is None) or (reduce is not None and num_samples is not None):
+        raise ValueError("You must specify either 'reduce' or 'num_samples', but not both.")
+
+    if reduce is not None:
+        if not (0 < reduce <= 1):
+            raise ValueError("'reduce' must be a float between 0 and 1.")
+        subset_size = int(len(dataset) * reduce)
+    else:
+        if not (0 < num_samples <= len(dataset)):
+            raise ValueError("'num_samples' must be a positive integer less than or equal to the size of the dataset.")
+        subset_size = num_samples
+
     subset_indices = np.random.choice(len(dataset), subset_size, replace=False)
     return Subset(dataset, subset_indices)
