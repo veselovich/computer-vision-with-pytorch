@@ -1,23 +1,21 @@
 import os
 import torch
-import numpy as np
-from torch.utils.data import Subset
 
 
-def dataset_rand_reduce(dataset, reduce: float = 0.2) -> Subset:
+def get_device():
     """
-    Reduces the dataset to a random subset of specified size.
-
-    Args:
-        dataset: The original dataset to reduce.
-        reduce (float): Fraction of the dataset to retain. Defaults to 0.2.
+    Determine the appropriate device for PyTorch operations.
 
     Returns:
-        Subset: A random subset of the original dataset.
+        torch.device: The best available device ('mps', 'cuda', or 'cpu').
     """
-    subset_size = int(len(dataset) * reduce)
-    subset_indices = np.random.choice(len(dataset), subset_size, replace=False)
-    return Subset(dataset, subset_indices)
+    if torch.backends.mps.is_built() and torch.backends.mps.is_available():
+        return torch.device("mps")
+    elif torch.cuda.is_available():
+        return torch.device("cuda")
+    else:
+        return torch.device("cpu")
+
 
 def get_model_size(model: torch.nn.Module) -> float:
     """
@@ -34,3 +32,16 @@ def get_model_size(model: torch.nn.Module) -> float:
     model_size = os.path.getsize(tmp_path) / (1024 * 1024)  # Convert bytes to MB
     os.remove(tmp_path)
     return model_size
+
+
+# Function to print list in multiple columns
+def print_in_columns(items, columns=3):
+    max_length = max(len(item) for item in items) + 2  # Padding for readability
+    rows = (len(items) + columns - 1) // columns
+    for row in range(rows):
+        line = ""
+        for col in range(columns):
+            idx = row + col * rows
+            if idx < len(items):
+                line += items[idx].ljust(max_length)
+        print(line)

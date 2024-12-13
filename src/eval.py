@@ -44,11 +44,13 @@ def pred_and_plot_image(
         img = Image.open(image_source)
 
     # Apply transformation
-    image_transform = transform or transforms.Compose([
-        transforms.Resize(image_size),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-    ])
+    image_transform = transform or transforms.Compose(
+        [
+            transforms.Resize(image_size),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ]
+    )
 
     # Prepare model
     model.to(device)
@@ -80,6 +82,7 @@ def pred_and_plot_image(
         "transformed_image": transformed_image,
     }
 
+
 def plot_confusion_matrix_step(
     model: torch.nn.Module,
     dataloader: torch.utils.data.DataLoader,
@@ -103,7 +106,9 @@ def plot_confusion_matrix_step(
     model.to(device)
     model.eval()
 
-    confusion_matrix_metric = ConfusionMatrix(num_classes=num_classes, task="multiclass").to(device)
+    confusion_matrix_metric = ConfusionMatrix(
+        num_classes=num_classes, task="multiclass"
+    ).to(device)
 
     with torch.inference_mode():
         for X, y in dataloader:
@@ -114,16 +119,19 @@ def plot_confusion_matrix_step(
     conf_matrix = confusion_matrix_metric.compute().cpu().numpy()
 
     fig, ax = plt.subplots(figsize=figsize)
-    plot_confusion_matrix(conf_mat=conf_matrix, class_names=class_names, cmap=cmap, axis=ax)
+    plot_confusion_matrix(
+        conf_mat=conf_matrix, class_names=class_names, cmap=cmap, axis=ax
+    )
     plt.title("Confusion Matrix")
     plt.show()
+
 
 def top_k_fails(
     model: torch.nn.Module,
     dataloader: torch.utils.data.DataLoader,
     class_names: List[str],
     device: torch.device = torch.device("cpu"),
-    k: int = 5
+    k: int = 5,
 ) -> dict:
     """Identifies and displays the top k images recognized incorrectly with the highest probabilities.
 
@@ -140,7 +148,12 @@ def top_k_fails(
     model.to(device)
     model.eval()
 
-    incorrect_images, incorrect_probs, incorrect_labels, incorrect_preds = [], [], [], []
+    incorrect_images, incorrect_probs, incorrect_labels, incorrect_preds = (
+        [],
+        [],
+        [],
+        [],
+    )
 
     with torch.inference_mode():
         for X, y in dataloader:
@@ -152,7 +165,9 @@ def top_k_fails(
             incorrect_mask = preds != y
             if incorrect_mask.any():
                 incorrect_images.extend(X[incorrect_mask].cpu())
-                incorrect_probs.extend(probs[incorrect_mask, preds[incorrect_mask]].cpu())
+                incorrect_probs.extend(
+                    probs[incorrect_mask, preds[incorrect_mask]].cpu()
+                )
                 incorrect_labels.extend(y[incorrect_mask].cpu())
                 incorrect_preds.extend(preds[incorrect_mask].cpu())
 
@@ -171,7 +186,9 @@ def top_k_fails(
 
         plt.subplot(1, k, i + 1)
         plt.imshow(torch.clip(image.permute(1, 2, 0), 0, 1))
-        plt.title(f"Pred: {class_names[pred]} ({prob:.2f})\nLabel: {class_names[label]}")
+        plt.title(
+            f"Pred: {class_names[pred]} ({prob:.2f})\nLabel: {class_names[label]}"
+        )
         plt.axis("off")
 
     plt.tight_layout()

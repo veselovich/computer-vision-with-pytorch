@@ -13,6 +13,7 @@ from typing import Dict, Optional
 from torchmetrics import F1Score, Precision, Recall
 from torch.utils.tensorboard.writer import SummaryWriter
 
+
 def train_step(
     model: torch.nn.Module,
     dataloader: torch.utils.data.DataLoader,
@@ -220,7 +221,12 @@ def train(
         results.append(metrics)
 
         # Print results
-        print(" | ".join(f"{key}: {value:.4f}" if isinstance(value, float) else f"{key}: {value}" for key, value in metrics.items()))
+        print(
+            " | ".join(
+                f"{key}: {value:.4f}" if isinstance(value, float) else f"{key}: {value}"
+                for key, value in metrics.items()
+            )
+        )
 
         # Log metrics to TensorBoard
         if writer:
