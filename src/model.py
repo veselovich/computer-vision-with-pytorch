@@ -8,7 +8,7 @@ from pathlib import Path
 from src.utils import print_in_columns
 
 
-def pretrained_is_available(model_name: str):
+def pretrained_is_available(model_name: str) -> bool:
     """
     Checks if pretrained weights are available for a specified model.
 
@@ -141,7 +141,7 @@ def create_vision_model(
 
 
 def load_model(
-    model_class: Type[nn.Module], model_path: str, device: str = "cpu"
+    model_class: Type[nn.Module], model_path: str, device: torch.device = torch.device("cpu")
 ) -> Optional[nn.Module]:
     """
     Loads a PyTorch model from a file.

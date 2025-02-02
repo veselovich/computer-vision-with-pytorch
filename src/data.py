@@ -150,3 +150,10 @@ def dataset_rand_reduce(dataset, reduce=None, num_samples=None) -> Subset:
 
     subset_indices = np.random.choice(len(dataset), subset_size, replace=False)
     return Subset(dataset, subset_indices)
+
+
+def load_dataset(dataset_name: str, transform: transforms.Compose, train: bool=True, root: str="./data"):
+    dataset_class = getattr(datasets, dataset_name, None)
+    if dataset_class is None:
+        raise ValueError(f"Dataset {dataset_name} not found in torchvision.datasets")
+    return dataset_class(root=root, transform=transform, train=train, download=True)
