@@ -156,4 +156,14 @@ def load_dataset(dataset_name: str, transform: transforms.Compose, train: bool=T
     dataset_class = getattr(datasets, dataset_name, None)
     if dataset_class is None:
         raise ValueError(f"Dataset {dataset_name} not found in torchvision.datasets")
-    return dataset_class(root=root, transform=transform, train=train, download=True)
+    
+    if dataset_name == 'Flowers102':
+        if train:
+            split = 'train'
+        else:
+            split = 'test'
+        dataset = dataset_class(root=root, transform=transform, split=split, download=True)
+        dataset.classes = list(range(102))
+        return dataset
+    else:
+        return dataset_class(root=root, transform=transform, train=train, download=True)
