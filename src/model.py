@@ -106,9 +106,9 @@ def create_vision_model(
         model.classifier = nn.Sequential(
             nn.Dropout(p=0.2), nn.Linear(in_features, out_features)
         ).to(device)
-    elif hasattr(model, "head"):  # Vision Transformer, etc.
-        in_features = model.head.in_features
-        model.head = nn.Linear(in_features, out_features).to(device)
+    elif hasattr(model, "heads"):  # Vision Transformer, etc.
+        in_features = model.heads[-1].in_features
+        model.heads = nn.Linear(in_features, out_features).to(device)
     else:
         raise ValueError(f"Unsupported model architecture for '{model_name}'.")
 

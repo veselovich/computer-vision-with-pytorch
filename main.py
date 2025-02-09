@@ -15,10 +15,10 @@ def main():
     EPOCHS_NUM = [10]
     LEARNING_RATE_VALS = [0.001]
     DATASETS = ["Flowers102"]
-    REDUCE_DATASET_VALS = [500]
+    REDUCE_DATASET_VALS = [1000]
     MODEL_NAMES = ["efficientnet_b0", "resnet18", "vit_b_16"]
     BATCH_SIZES = [32]
-    COMPILE_MODEL_VALS = [True]
+    COMPILE_MODEL_VALS = [False]
 
     param_combinations = product(
         EPOCHS_NUM, LEARNING_RATE_VALS, DATASETS, REDUCE_DATASET_VALS,
